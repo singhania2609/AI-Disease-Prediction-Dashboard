@@ -344,17 +344,34 @@ def page_full_body_checkup():
         pregnancies = b3.number_input("Pregnancies (if female)", 0, 20, 0, step=1)
 
         st.markdown("### 🩸 Blood & Vitals")
-        v1, v2, v3, v4 = st.columns(4)
-        glucose = v1.number_input("Glucose", 0.0, 500.0, 110.0, step=1.0)
-        blood_pressure = v2.number_input("Blood Pressure (systolic)", 40, 250, 120, step=1)
-        cholesterol = v3.number_input("Cholesterol", 50, 600, 220, step=1)
-        heart_rate = v4.number_input("Max Heart Rate", 50, 220, 150, step=1)
+        v1, v2, v3, v4, v5 = st.columns(5)
+        glucose_fasting = v1.number_input("Glucose (Fasting)", 0.0, 500.0, 100.0, step=1.0)
+        glucose_pp = v2.number_input("Glucose (Post-Meal)", 0.0, 500.0, 140.0, step=1.0)
+        blood_pressure = v3.number_input("Blood Pressure (Max/Systolic)", 40, 250, 120, step=1)
+        bp_diastolic = v4.number_input("Blood Pressure (Min/Diastolic)", 30, 150, 80, step=1)
+        cholesterol = v5.number_input("Cholesterol", 50, 600, 220, step=1)
 
-        v5, v6, v7, v8 = st.columns(4)
-        bmi = v5.number_input("BMI", 0.0, 70.0, 25.0, step=0.1)
-        insulin = v6.number_input("Insulin", 0.0, 900.0, 80.0, step=1.0)
-        skin_thickness = v7.number_input("Skin Thickness", 0.0, 100.0, 20.0, step=1.0)
-        dpf = v8.number_input("Diabetes Pedigree Function", 0.0, 3.0, 0.5, step=0.01)
+        v6, v7, v8, v9, v10 = st.columns(5)
+        heart_rate = v6.number_input("Max Heart Rate", 50, 220, 150, step=1)
+        bmi = v7.number_input("BMI", 0.0, 70.0, 25.0, step=0.1)
+        insulin = v8.number_input("Insulin", 0.0, 900.0, 80.0, step=1.0)
+        skin_thickness = v9.number_input("Skin Thickness", 0.0, 100.0, 20.0, step=1.0)
+        dpf = v10.number_input("Diabetes Pedigree Function", 0.0, 3.0, 0.5, step=0.01)
+
+        st.markdown("### ❤️ Heart & ECG")
+        h1, h2, h3, h4, h5 = st.columns(5)
+        cp = h1.selectbox("Chest Pain Type", ["None (0)", "Typical Angina (1)", "Atypical Angina (2)", "Non-Anginal (3)"])
+        cp_val = int(cp.split("(")[1].replace(")", ""))
+        restecg = h2.selectbox("Rest ECG", ["Normal (0)", "ST-T Abnormality (1)", "LV Hypertrophy (2)"])
+        restecg_val = int(restecg.split("(")[1].replace(")", ""))
+        fbs = h3.selectbox("Fasting Sugar >120 mg/dl", ["No", "Yes"])
+        exang = h4.selectbox("Exercise Angina", ["No", "Yes"])
+        oldpeak = h5.number_input("ST Depression", 0.0, 10.0, 1.0, step=0.1)
+
+        h6, h7, h8 = st.columns(3)
+        slope = h6.number_input("Slope (0-2)", 0, 2, 1, step=1)
+        ca = h7.number_input("Major Vessels (0-3)", 0, 3, 0, step=1)
+        thal = h8.number_input("Thal (0-3)", 0, 3, 2, step=1)
 
         st.markdown("### 🫀 Liver & Kidney")
         l1, l2, l3, l4 = st.columns(4)
@@ -402,31 +419,21 @@ def page_full_body_checkup():
         chest_pain = lc12.selectbox("Chest Pain", ["No", "Yes"])
         peer_pressure = lc13.selectbox("Peer Pressure", ["No", "Yes"])
 
-        st.markdown("### ❤️ Heart Parameters")
-        h1, h2, h3, h4 = st.columns(4)
-        cp = h1.number_input("Chest Pain Type (0-3)", 0, 3, 1, step=1)
-        fbs = h2.selectbox("Fasting Sugar >120", ["No", "Yes"])
-        restecg = h3.number_input("Rest ECG (0-2)", 0, 2, 1, step=1)
-        exang = h4.selectbox("Exercise Angina", ["No", "Yes"])
-
-        h5, h6, h7, h8 = st.columns(4)
-        oldpeak = h5.number_input("ST Depression", 0.0, 10.0, 1.0, step=0.1)
-        slope = h6.number_input("Slope (0-2)", 0, 2, 1, step=1)
-        ca = h7.number_input("Major Vessels (0-3)", 0, 3, 0, step=1)
-        thal = h8.number_input("Thal (0-3)", 0, 3, 2, step=1)
-
         submitted = st.form_submit_button("🔬 Run Full Body Checkup", use_container_width=True)
 
     if submitted:
         yn = lambda v: 2 if v == "Yes" else 1
         yn01 = lambda v: 1 if v == "Yes" else 0
 
+        # Use fasting glucose for diabetes, post-meal for kidney
+        glucose = glucose_fasting  # primary glucose value for models
+
         results = []
 
         # ── Diabetes ──
         model_diabetes, _ = get_predictor("Diabetes")
         if model_diabetes:
-            vals = [pregnancies, glucose, blood_pressure, skin_thickness, insulin, bmi, dpf, age]
+            vals = [pregnancies, glucose_fasting, blood_pressure, skin_thickness, insulin, bmi, dpf, age]
             pred, conf = run_prediction(model_diabetes, vals)
             positive = bool(pred) and pred not in (0, "0", "No", "Negative")
             results.append(("🩸 Diabetes", positive, conf))
@@ -434,8 +441,8 @@ def page_full_body_checkup():
         # ── Heart Disease ──
         model_heart, _ = get_predictor("Heart Disease")
         if model_heart:
-            vals = [age, gender_val, cp, blood_pressure, cholesterol, yn01(fbs),
-                    restecg, heart_rate, yn01(exang), oldpeak, slope, ca, thal]
+            vals = [age, gender_val, cp_val, blood_pressure, cholesterol, yn01(fbs),
+                    restecg_val, heart_rate, yn01(exang), oldpeak, slope, ca, thal]
             pred, conf = run_prediction(model_heart, vals)
             positive = bool(pred) and pred not in (0, "0", "No", "Negative")
             results.append(("❤️ Heart Disease", positive, conf))
@@ -464,7 +471,7 @@ def page_full_body_checkup():
         model_kidney, _ = get_predictor("Chronic Kidney Disease")
         if model_kidney:
             vals = [age, blood_pressure, specific_gravity, 1, 0, 0, 0, 0, 0,
-                    glucose, blood_urea, serum_creatinine, sodium, potassium,
+                    glucose_pp, blood_urea, serum_creatinine, sodium, potassium,
                     hemoglobin, 44, wbc_count, rbc_count, 0, 0, 0, 0, 0, 0]
             pred, conf = run_prediction(model_kidney, vals)
             positive = bool(pred) and pred not in (0, "0", "No", "Negative")
@@ -517,7 +524,7 @@ def page_full_body_checkup():
         )
         avg_conf = sum(c for _, _, c in results if c) / max(sum(1 for _, _, c in results if c), 1)
         save_report(st.session_state.user["id"], "Full Body Checkup",
-                    f"Age={age}, Gender={gender}, Glucose={glucose}, BP={blood_pressure}",
+                    f"Age={age}, Gender={gender}, Glucose(F)={glucose_fasting}, Glucose(PP)={glucose_pp}, BP={blood_pressure}/{bp_diastolic}",
                     all_predictions, confidence=avg_conf)
 
         if positive_count > 0:
@@ -537,9 +544,12 @@ def page_full_body_checkup():
                 disease="Full Body Checkup",
                 prediction="; ".join(f"{n}: {'Positive' if p else 'Negative'}" 
                                      for n, p, _ in clean_results),
-                params={"Age": age, "Gender": gender, "Glucose": glucose,
-                        "Blood Pressure": blood_pressure, "BMI": bmi,
-                        "Cholesterol": cholesterol, "Hemoglobin": hemoglobin},
+                params={"Age": age, "Gender": gender, 
+                        "Glucose (Fasting)": glucose_fasting,
+                        "Glucose (Post-Meal)": glucose_pp,
+                        "Blood Pressure": f"{blood_pressure}/{bp_diastolic}",
+                        "BMI": bmi, "Cholesterol": cholesterol, 
+                        "Hemoglobin": hemoglobin},
                 confidence=avg_conf,
                 explanation=[f"{n}: {'At Risk' if p else 'Low Risk'}"
                              for n, p, _ in clean_results],
