@@ -16,11 +16,28 @@ def _load(name: str):
         p = MODELS / f"{name}{ext}"
         if p.exists():
             try:
-                return joblib.load(p)
+                model = joblib.load(p)
             except Exception:
                 with open(p, "rb") as f:
-                    return pickle.load(f)
+                    model = pickle.load(f)
+            # Fix models trained with older scikit-learn versions
+            _patch_old_model(model)
+            return model
     return None
+
+
+def _patch_old_model(model):
+    """Add missing attributes for models trained with older scikit-learn."""
+    estimators = []
+    if hasattr(model, 'estimators_'):
+        estimators = model.estimators_
+    elif hasattr(model, 'base_estimator_') and hasattr(model.base_estimator_, 'estimators_'):
+        estimators = model.base_estimator_.estimators_
+    for est in estimators:
+        if hasattr(est, 'tree_') and not hasattr(est, 'monotonic_cst'):
+            est.monotonic_cst = None
+    if hasattr(model, 'tree_') and not hasattr(model, 'monotonic_cst'):
+        model.monotonic_cst = None
 
 
 # Each entry: model filename stem, ordered list of (field, label, type, default, min, max)
@@ -227,12 +244,22 @@ def get_predictor(disease: str):
 
 def run_prediction(model, values: list[float]):
     arr = np.array(values, dtype=float).reshape(1, -1)
-    pred = model.predict(arr)[0]
+    try:
+        pred = model.predict(arr)[0]
+    except AttributeError:
+        # Model trained with older scikit-learn version — fix missing attributes
+        if hasattr(model, 'estimators_'):
+            for est in model.estimators_:
+                if hasattr(est, 'tree_') and not hasattr(est, 'monotonic_cst'):
+                    est.monotonic_cst = None
+        elif hasattr(model, 'tree_') and not hasattr(model, 'monotonic_cst'):
+            model.monotonic_cst = None
+        pred = model.predict(arr)[0]
     conf = None
     if hasattr(model, "predict_proba"):
         try:
             proba = model.predict_proba(arr)[0]
             conf = float(np.max(proba))
-        except Exception:
+        except (Exception, AttributeError):
             conf = None
     return int(pred) if not isinstance(pred, str) else pred, conf

@@ -5,6 +5,11 @@ from pathlib import Path
 import io
 
 
+def _strip_emojis(text: str) -> str:
+    """Remove all non-ASCII characters that can't be rendered by standard PDF fonts."""
+    return text.encode('ascii', 'ignore').decode('ascii').strip()
+
+
 HEALTH_TIPS = {
     "Diabetes": ["Maintain healthy weight", "Limit refined sugar", "Exercise 30 min daily"],
     "Heart Disease": ["Quit smoking", "Reduce sodium", "Monitor blood pressure"],
@@ -91,19 +96,17 @@ def generate_pdf(*, username, disease, prediction, params: dict,
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(30, 90, 160)
         pdf.set_x(15)
-        pdf.cell(0, 8, title, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 8, _strip_emojis(title), new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("Helvetica", "", 10)
         pdf.set_text_color(20, 20, 20)
 
     def kv(k, v):
         # Truncate long values so they never overflow
-        text = str(v)[:100]
+        text = _strip_emojis(str(v))[:100]
         pdf.set_x(15)
         pdf.set_font("Helvetica", "B", 10)
-        # Label in fixed 50pt column
-        pdf.cell(50, 6, f"{k}:", border=0)
+        pdf.cell(50, 6, f"{_strip_emojis(str(k))}:", border=0)
         pdf.set_font("Helvetica", "", 10)
-        # Value fills remaining width — multi_cell resets x so we set it each time
         pdf.multi_cell(0, 6, text, border=0)
         pdf.set_x(15)
 
@@ -126,24 +129,24 @@ def generate_pdf(*, username, disease, prediction, params: dict,
     if description:
         section("Disease Description")
         pdf.set_x(15)
-        pdf.multi_cell(0, 6, str(description)[:500])
+        pdf.multi_cell(0, 6, _strip_emojis(str(description))[:500])
 
     if explanation:
         section("Why this prediction")
         for r in explanation:
             pdf.set_x(15)
-            pdf.multi_cell(0, 6, f"- {str(r)[:120]}")
+            pdf.multi_cell(0, 6, f"- {_strip_emojis(str(r))[:120]}")
 
     if precautions:
         section("Precautions")
         for p in precautions:
             pdf.set_x(15)
-            pdf.multi_cell(0, 6, f"- {str(p)[:120]}")
+            pdf.multi_cell(0, 6, f"- {_strip_emojis(str(p))[:120]}")
 
     section("Health Recommendations")
     for tip in HEALTH_TIPS.get(disease, HEALTH_TIPS["Symptom-Based"]):
         pdf.set_x(15)
-        pdf.multi_cell(0, 6, f"- {tip}")
+        pdf.multi_cell(0, 6, f"- {_strip_emojis(tip)}")
 
     pdf.ln(4)
     pdf.set_font("Helvetica", "I", 9)

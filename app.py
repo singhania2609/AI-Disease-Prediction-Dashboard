@@ -218,8 +218,8 @@ def sidebar() -> str:
         st.caption(u["email"])
         st.divider()
         choice = st.radio("Navigation", [
-    "🏠 Dashboard", "🏥 About", "🧪 Disease Prediction",
-    "🤒 Symptom-Based", "📁 Saved Reports",
+    "🏠 Dashboard", "🏥 About", "� Full Body Checkup",
+    "�🧪 Disease Prediction", "🤒 Symptom-Based", "📁 Saved Reports",
     "📊 Analytics", "💡 Health Tips", "🏨 Nearby Hospitals",
     "🤖 AI Chatbot", "👤 Profile", "⚙️ Settings",
 ], label_visibility="collapsed")
@@ -324,6 +324,226 @@ def render_prediction_result(disease, pred_label, positive, conf, params):
     with st.expander("🔍 Why this prediction?", expanded=True):
         for reason in explain_prediction(disease, params, positive):
             st.write("• " + reason)
+
+
+# ── Full Body Checkup (Unified Prediction) ────────────────────────────────────
+def page_full_body_checkup():
+    st.markdown('<p class="main-title">🩻 Full Body Checkup</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Enter your details once — get predictions for all diseases</p>',
+                unsafe_allow_html=True)
+
+    with st.form("full_body_form"):
+        st.markdown("### 👤 Basic Information")
+        b1, b2, b3 = st.columns(3)
+        age = b1.number_input("Age", 1, 120, 45, step=1)
+        gender = b2.selectbox("Gender", ["Male", "Female"])
+        gender_val = 1 if gender == "Male" else 0
+        pregnancies = b3.number_input("Pregnancies (if female)", 0, 20, 0, step=1)
+
+        st.markdown("### 🩸 Blood & Vitals")
+        v1, v2, v3, v4 = st.columns(4)
+        glucose = v1.number_input("Glucose", 0.0, 500.0, 110.0, step=1.0)
+        blood_pressure = v2.number_input("Blood Pressure (systolic)", 40, 250, 120, step=1)
+        cholesterol = v3.number_input("Cholesterol", 50, 600, 220, step=1)
+        heart_rate = v4.number_input("Max Heart Rate", 50, 220, 150, step=1)
+
+        v5, v6, v7, v8 = st.columns(4)
+        bmi = v5.number_input("BMI", 0.0, 70.0, 25.0, step=0.1)
+        insulin = v6.number_input("Insulin", 0.0, 900.0, 80.0, step=1.0)
+        skin_thickness = v7.number_input("Skin Thickness", 0.0, 100.0, 20.0, step=1.0)
+        dpf = v8.number_input("Diabetes Pedigree Function", 0.0, 3.0, 0.5, step=0.01)
+
+        st.markdown("### 🫀 Liver & Kidney")
+        l1, l2, l3, l4 = st.columns(4)
+        total_bilirubin = l1.number_input("Total Bilirubin", 0.0, 80.0, 1.0, step=0.1)
+        direct_bilirubin = l2.number_input("Direct Bilirubin", 0.0, 30.0, 0.3, step=0.1)
+        alk_phosphatase = l3.number_input("Alkaline Phosphatase", 50, 2000, 200, step=1)
+        alt = l4.number_input("ALT (SGPT)", 1, 2000, 35, step=1)
+
+        l5, l6, l7, l8 = st.columns(4)
+        ast = l5.number_input("AST (SGOT)", 1, 2000, 40, step=1)
+        total_proteins = l6.number_input("Total Proteins", 0.0, 10.0, 6.5, step=0.1)
+        albumin = l7.number_input("Albumin", 0.0, 6.0, 3.8, step=0.1)
+        ag_ratio = l8.number_input("A/G Ratio", 0.0, 3.0, 1.0, step=0.1)
+
+        st.markdown("### 🫁 Kidney Parameters")
+        k1, k2, k3, k4 = st.columns(4)
+        hemoglobin = k1.number_input("Hemoglobin", 3.0, 20.0, 13.0, step=0.1)
+        blood_urea = k2.number_input("Blood Urea", 1, 400, 40, step=1)
+        serum_creatinine = k3.number_input("Serum Creatinine", 0.0, 20.0, 1.2, step=0.1)
+        sodium = k4.number_input("Sodium", 100, 200, 138, step=1)
+
+        k5, k6, k7, k8 = st.columns(4)
+        potassium = k5.number_input("Potassium", 1.0, 10.0, 4.5, step=0.1)
+        specific_gravity = k6.number_input("Specific Gravity", 1.0, 1.05, 1.02, step=0.005)
+        rbc_count = k7.number_input("RBC Count", 2.0, 8.0, 5.2, step=0.1)
+        wbc_count = k8.number_input("WBC Count", 2200, 26400, 7800, step=100)
+
+        st.markdown("### 🫁 Lung Cancer Risk Factors")
+        lc1, lc2, lc3, lc4, lc5 = st.columns(5)
+        smoking = lc1.selectbox("Smoking", ["No", "Yes"])
+        yellow_fingers = lc2.selectbox("Yellow Fingers", ["No", "Yes"])
+        anxiety = lc3.selectbox("Anxiety", ["No", "Yes"])
+        chronic_disease = lc4.selectbox("Chronic Disease", ["No", "Yes"])
+        fatigue = lc5.selectbox("Fatigue", ["No", "Yes"])
+
+        lc6, lc7, lc8, lc9, lc10 = st.columns(5)
+        allergy = lc6.selectbox("Allergy", ["No", "Yes"])
+        wheezing = lc7.selectbox("Wheezing", ["No", "Yes"])
+        alcohol = lc8.selectbox("Alcohol", ["No", "Yes"])
+        coughing = lc9.selectbox("Coughing", ["No", "Yes"])
+        shortness_breath = lc10.selectbox("Shortness of Breath", ["No", "Yes"])
+
+        lc11, lc12, lc13 = st.columns(3)
+        swallowing_diff = lc11.selectbox("Swallowing Difficulty", ["No", "Yes"])
+        chest_pain = lc12.selectbox("Chest Pain", ["No", "Yes"])
+        peer_pressure = lc13.selectbox("Peer Pressure", ["No", "Yes"])
+
+        st.markdown("### ❤️ Heart Parameters")
+        h1, h2, h3, h4 = st.columns(4)
+        cp = h1.number_input("Chest Pain Type (0-3)", 0, 3, 1, step=1)
+        fbs = h2.selectbox("Fasting Sugar >120", ["No", "Yes"])
+        restecg = h3.number_input("Rest ECG (0-2)", 0, 2, 1, step=1)
+        exang = h4.selectbox("Exercise Angina", ["No", "Yes"])
+
+        h5, h6, h7, h8 = st.columns(4)
+        oldpeak = h5.number_input("ST Depression", 0.0, 10.0, 1.0, step=0.1)
+        slope = h6.number_input("Slope (0-2)", 0, 2, 1, step=1)
+        ca = h7.number_input("Major Vessels (0-3)", 0, 3, 0, step=1)
+        thal = h8.number_input("Thal (0-3)", 0, 3, 2, step=1)
+
+        submitted = st.form_submit_button("🔬 Run Full Body Checkup", use_container_width=True)
+
+    if submitted:
+        yn = lambda v: 2 if v == "Yes" else 1
+        yn01 = lambda v: 1 if v == "Yes" else 0
+
+        results = []
+
+        # ── Diabetes ──
+        model_diabetes, _ = get_predictor("Diabetes")
+        if model_diabetes:
+            vals = [pregnancies, glucose, blood_pressure, skin_thickness, insulin, bmi, dpf, age]
+            pred, conf = run_prediction(model_diabetes, vals)
+            positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+            results.append(("🩸 Diabetes", positive, conf))
+
+        # ── Heart Disease ──
+        model_heart, _ = get_predictor("Heart Disease")
+        if model_heart:
+            vals = [age, gender_val, cp, blood_pressure, cholesterol, yn01(fbs),
+                    restecg, heart_rate, yn01(exang), oldpeak, slope, ca, thal]
+            pred, conf = run_prediction(model_heart, vals)
+            positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+            results.append(("❤️ Heart Disease", positive, conf))
+
+        # ── Liver Disease ──
+        model_liver, _ = get_predictor("Liver Disease")
+        if model_liver:
+            vals = [age, gender_val, total_bilirubin, direct_bilirubin, alk_phosphatase,
+                    alt, ast, total_proteins, albumin, ag_ratio]
+            pred, conf = run_prediction(model_liver, vals)
+            positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+            results.append(("🫀 Liver Disease", positive, conf))
+
+        # ── Lung Cancer ──
+        model_lung, _ = get_predictor("Lung Cancer")
+        if model_lung:
+            vals = [gender_val, age, yn(smoking), yn(yellow_fingers), yn(anxiety),
+                    yn(peer_pressure), yn(chronic_disease), yn(fatigue), yn(allergy),
+                    yn(wheezing), yn(alcohol), yn(coughing), yn(shortness_breath),
+                    yn(swallowing_diff), yn(chest_pain)]
+            pred, conf = run_prediction(model_lung, vals)
+            positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+            results.append(("🫁 Lung Cancer", positive, conf))
+
+        # ── Chronic Kidney Disease ──
+        model_kidney, _ = get_predictor("Chronic Kidney Disease")
+        if model_kidney:
+            vals = [age, blood_pressure, specific_gravity, 1, 0, 0, 0, 0, 0,
+                    glucose, blood_urea, serum_creatinine, sodium, potassium,
+                    hemoglobin, 44, wbc_count, rbc_count, 0, 0, 0, 0, 0, 0]
+            pred, conf = run_prediction(model_kidney, vals)
+            positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+            results.append(("🩺 Chronic Kidney Disease", positive, conf))
+
+        # ── Hepatitis ──
+        model_hep, _ = get_predictor("Hepatitis")
+        if model_hep:
+            vals = [age, gender_val, 1, 1, yn(fatigue), 1, 1, 1, 1, 1,
+                    total_bilirubin, albumin]
+            pred, conf = run_prediction(model_hep, vals)
+            positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+            results.append(("🦠 Hepatitis", positive, conf))
+
+        # ── Display Results ──
+        st.markdown("---")
+        st.markdown("## 📋 Full Body Checkup Results")
+
+        positive_count = sum(1 for _, p, _ in results if p)
+        negative_count = len(results) - positive_count
+
+        r1, r2, r3 = st.columns(3)
+        r1.markdown(f'<div class="metric-card"><div style="opacity:.8;font-size:.85rem">Diseases Checked</div>'
+                    f'<h2 style="margin:4px 0 0">{len(results)}</h2></div>', unsafe_allow_html=True)
+        r2.markdown(f'<div class="metric-card" style="background:linear-gradient(135deg,#d9534f,#e87c7c)">'
+                    f'<div style="opacity:.8;font-size:.85rem">At Risk</div>'
+                    f'<h2 style="margin:4px 0 0">{positive_count}</h2></div>', unsafe_allow_html=True)
+        r3.markdown(f'<div class="metric-card" style="background:linear-gradient(135deg,#28a745,#5cb85c)">'
+                    f'<div style="opacity:.8;font-size:.85rem">Low Risk</div>'
+                    f'<h2 style="margin:4px 0 0">{negative_count}</h2></div>', unsafe_allow_html=True)
+
+        st.markdown("")
+
+        for disease_name, positive, conf in results:
+            if positive:
+                conf_text = f" — {conf*100:.0f}% confidence" if conf else ""
+                st.markdown(f'<div class="result-positive">⚠️ {disease_name}: '
+                            f'<strong>Positive / At Risk</strong>{conf_text}</div>',
+                            unsafe_allow_html=True)
+            else:
+                conf_text = f" — {conf*100:.0f}% confidence" if conf else ""
+                st.markdown(f'<div class="result-negative">✅ {disease_name}: '
+                            f'<strong>Negative / Low Risk</strong>{conf_text}</div>',
+                            unsafe_allow_html=True)
+            st.markdown("")
+
+        # Save combined report
+        all_predictions = "; ".join(
+            f"{name}: {'Positive' if pos else 'Negative'}" for name, pos, _ in results
+        )
+        avg_conf = sum(c for _, _, c in results if c) / max(sum(1 for _, _, c in results if c), 1)
+        save_report(st.session_state.user["id"], "Full Body Checkup",
+                    f"Age={age}, Gender={gender}, Glucose={glucose}, BP={blood_pressure}",
+                    all_predictions, confidence=avg_conf)
+
+        if positive_count > 0:
+            st.warning("👨‍⚕️ **Doctor consultation recommended** for the conditions marked at risk.")
+            if positive_count >= 3:
+                st.error("🚨 Multiple risk factors detected — please seek medical attention soon.")
+        else:
+            st.success("🎉 All clear! No significant risk detected. Keep up the healthy lifestyle!")
+
+        # PDF download
+        with st.spinner("Generating PDF..."):
+            # Strip emojis for PDF compatibility
+            clean_results = [(name.encode('ascii', 'ignore').decode().strip(), pos, c) 
+                            for name, pos, c in results]
+            pdf_bytes = generate_pdf(
+                username=st.session_state.user["username"],
+                disease="Full Body Checkup",
+                prediction="; ".join(f"{n}: {'Positive' if p else 'Negative'}" 
+                                     for n, p, _ in clean_results),
+                params={"Age": age, "Gender": gender, "Glucose": glucose,
+                        "Blood Pressure": blood_pressure, "BMI": bmi,
+                        "Cholesterol": cholesterol, "Hemoglobin": hemoglobin},
+                confidence=avg_conf,
+                explanation=[f"{n}: {'At Risk' if p else 'Low Risk'}"
+                             for n, p, _ in clean_results],
+            )
+        st.download_button("⬇️ Download Full Checkup Report (PDF)", pdf_bytes,
+                           file_name="full_body_checkup_report.pdf",
+                           mime="application/pdf", use_container_width=True)
 
 
 # ── Disease prediction ────────────────────────────────────────────────────────
@@ -710,7 +930,8 @@ else:
     {
         "🏠 Dashboard":          page_dashboard,
         "🏥 About":              page_about,
-        "🧪 Disease Prediction": page_disease_prediction,
+        "� Full Body Checkup":  page_full_body_checkup,
+        "�🧪 Disease Prediction": page_disease_prediction,
         "🤒 Symptom-Based":      page_symptom,
         "📁 Saved Reports":      page_reports,
         "📊 Analytics":          page_analytics,
