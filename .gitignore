@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# App data
+data.db
+*.db
+
+# Model cache (keep .sav files, ignore joblib cache)
+models/symptom_dt.joblib
+
+# Secrets
+.streamlit/secrets.toml
