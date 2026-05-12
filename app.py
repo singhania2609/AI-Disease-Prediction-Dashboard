@@ -221,10 +221,10 @@ def sidebar() -> str:
         st.caption(u["email"])
         st.divider()
         choice = st.radio("Navigation", [
-    "🏠 Dashboard", "🏥 About", "� Full Body Checkup",
-    "�🧪 Disease Prediction", "🤒 Symptom-Based", "📁 Saved Reports",
-    "📊 Analytics", "💡 Health Tips", "🏨 Nearby Hospitals",
-    "🤖 AI Chatbot", "👤 Profile", "⚙️ Settings",
+    "🏠 Dashboard", "🏥 About", "🩻 Full Body Checkup",
+    "📤 Upload Report", "🧪 Disease Prediction", "🤒 Symptom-Based",
+    "📁 Saved Reports", "📊 Analytics", "💡 Health Tips",
+    "🏨 Nearby Hospitals", "🤖 AI Chatbot", "👤 Profile", "⚙️ Settings",
 ], label_visibility="collapsed")
         st.divider()
         if st.button("🚪 Logout", use_container_width=True):
@@ -557,6 +557,255 @@ def page_full_body_checkup():
         st.download_button("⬇️ Download Full Checkup Report (PDF)", pdf_bytes,
                            file_name="full_body_checkup_report.pdf",
                            mime="application/pdf", use_container_width=True)
+
+
+# ── Upload Report ─────────────────────────────────────────────────────────────
+def page_upload_report():
+    st.markdown('<p class="main-title">📤 Upload Medical Report</p>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Upload your blood test / medical report and get instant disease predictions</p>',
+                unsafe_allow_html=True)
+
+    st.info("📋 Upload a medical report (CSV or manually enter values from your report). "
+            "The system will extract relevant parameters and predict diseases automatically.")
+
+    tab1, tab2 = st.tabs(["📄 Upload PDF/Image Report", "✍️ Enter Report Values"])
+
+    with tab1:
+        st.markdown("#### Upload your medical report (PDF or Image)")
+        st.caption("Supported formats: PDF, PNG, JPG, JPEG. The system will extract text and find medical values.")
+        uploaded = st.file_uploader("Choose your report file", type=["pdf", "png", "jpg", "jpeg"])
+
+        if uploaded:
+            try:
+                extracted_text = ""
+
+                if uploaded.type == "application/pdf":
+                    # Extract text from PDF
+                    try:
+                        import fitz  # PyMuPDF
+                        pdf_bytes = uploaded.read()
+                        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                        for page in doc:
+                            extracted_text += page.get_text()
+                        doc.close()
+                    except ImportError:
+                        st.error("PDF reading requires PyMuPDF. Add `PyMuPDF` to requirements.txt")
+                        extracted_text = ""
+                else:
+                    # Extract text from image using OCR
+                    try:
+                        from PIL import Image
+                        import pytesseract
+                        img = Image.open(uploaded)
+                        extracted_text = pytesseract.image_to_string(img)
+                    except ImportError:
+                        st.error("Image OCR requires `pytesseract` and `Pillow`. Add them to requirements.txt")
+                        extracted_text = ""
+                    except Exception as ocr_err:
+                        st.warning(f"OCR failed: {ocr_err}. Please use manual entry tab.")
+                        extracted_text = ""
+
+                if extracted_text:
+                    with st.expander("📝 Extracted Text (click to view)", expanded=False):
+                        st.text(extracted_text[:2000])
+
+                    # Parse numbers from text
+                    import re
+                    col_map = {}
+                    text_lower = extracted_text.lower()
+
+                    # Pattern: "parameter_name ... number"
+                    patterns = {
+                        "glucose": r"(?:glucose|sugar|fbs|rbs)[\s:.\-]*(\d+\.?\d*)",
+                        "cholesterol": r"(?:cholesterol|chol)[\s:.\-]*(\d+\.?\d*)",
+                        "hemoglobin": r"(?:hemoglobin|haemoglobin|hb|hgb)[\s:.\-]*(\d+\.?\d*)",
+                        "total_bilirubin": r"(?:total\s*bilirubin|t\.?\s*bil)[\s:.\-]*(\d+\.?\d*)",
+                        "creatinine": r"(?:creatinine|creat)[\s:.\-]*(\d+\.?\d*)",
+                        "albumin": r"(?:albumin|alb)[\s:.\-]*(\d+\.?\d*)",
+                        "bp": r"(?:blood\s*pressure|bp|systolic)[\s:.\-]*(\d+\.?\d*)",
+                        "bmi": r"(?:bmi|body\s*mass)[\s:.\-]*(\d+\.?\d*)",
+                        "age": r"(?:age|years)[\s:.\-]*(\d+)",
+                        "urea": r"(?:urea|bun|blood\s*urea)[\s:.\-]*(\d+\.?\d*)",
+                        "sodium": r"(?:sodium|na\+?)[\s:.\-]*(\d+\.?\d*)",
+                        "potassium": r"(?:potassium|k\+?)[\s:.\-]*(\d+\.?\d*)",
+                    }
+
+                    for key, pattern in patterns.items():
+                        match = re.search(pattern, text_lower)
+                        if match:
+                            try:
+                                col_map[key] = float(match.group(1))
+                            except ValueError:
+                                pass
+
+                    if col_map:
+                        st.markdown("#### 🔍 Extracted Parameters from Report")
+                        for k, v in col_map.items():
+                            st.write(f"• **{k.replace('_', ' ').title()}**: {v}")
+
+                        if st.button("🔬 Run Predictions from Report", use_container_width=True):
+                            results = _predict_from_report(col_map)
+                            _display_report_results(results)
+                    else:
+                        st.warning("Could not extract medical values from the report. "
+                                   "Please use the manual entry tab instead.")
+                elif uploaded:
+                    st.warning("Could not read text from file. Please use the manual entry tab.")
+
+            except Exception as e:
+                st.error(f"Error reading file: {e}")
+
+    with tab2:
+        st.markdown("#### Enter values from your medical report")
+        with st.form("report_form"):
+            r1, r2, r3, r4 = st.columns(4)
+            age = r1.number_input("Age", 1, 120, 45, step=1)
+            gender = r2.selectbox("Gender", ["Male", "Female"])
+            glucose_f = r3.number_input("Glucose (Fasting)", 0.0, 500.0, 100.0, step=1.0)
+            glucose_pp = r4.number_input("Glucose (PP/Random)", 0.0, 500.0, 140.0, step=1.0)
+
+            r5, r6, r7, r8 = st.columns(4)
+            bp_sys = r5.number_input("BP Systolic", 40, 250, 120, step=1)
+            bp_dia = r6.number_input("BP Diastolic", 30, 150, 80, step=1)
+            cholesterol = r7.number_input("Cholesterol", 50, 600, 220, step=1)
+            hemoglobin = r8.number_input("Hemoglobin", 3.0, 20.0, 13.0, step=0.1)
+
+            r9, r10, r11, r12 = st.columns(4)
+            bilirubin = r9.number_input("Total Bilirubin", 0.0, 80.0, 1.0, step=0.1)
+            creatinine = r10.number_input("Serum Creatinine", 0.0, 20.0, 1.2, step=0.1)
+            albumin = r11.number_input("Albumin", 0.0, 6.0, 3.8, step=0.1)
+            bmi = r12.number_input("BMI", 0.0, 70.0, 25.0, step=0.1)
+
+            r13, r14, r15, r16 = st.columns(4)
+            urea = r13.number_input("Blood Urea", 1, 400, 40, step=1)
+            sodium = r14.number_input("Sodium", 100, 200, 138, step=1)
+            potassium = r15.number_input("Potassium", 1.0, 10.0, 4.5, step=0.1)
+            insulin = r16.number_input("Insulin", 0.0, 900.0, 80.0, step=1.0)
+
+            submitted = st.form_submit_button("🔬 Predict from Report Values", use_container_width=True)
+
+        if submitted:
+            col_map = {
+                "age": age, "gender": 1 if gender == "Male" else 0,
+                "glucose": glucose_f, "glucose_pp": glucose_pp,
+                "bp": bp_sys, "bp_dia": bp_dia,
+                "cholesterol": cholesterol, "hemoglobin": hemoglobin,
+                "total_bilirubin": bilirubin, "creatinine": creatinine,
+                "albumin": albumin, "bmi": bmi,
+                "urea": urea, "sodium": sodium,
+                "potassium": potassium, "insulin": insulin,
+            }
+            results = _predict_from_report(col_map)
+            _display_report_results(results)
+
+            # Save report
+            all_preds = "; ".join(f"{n}: {'Positive' if p else 'Negative'}" for n, p, _ in results)
+            avg_conf = sum(c for _, _, c in results if c) / max(sum(1 for _, _, c in results if c), 1)
+            save_report(st.session_state.user["id"], "Upload Report",
+                        ", ".join(f"{k}={v}" for k, v in col_map.items()),
+                        all_preds, confidence=avg_conf)
+
+
+def _predict_from_report(params: dict) -> list:
+    """Run predictions based on extracted report parameters."""
+    results = []
+    age = float(params.get("age", 45))
+    gender = int(params.get("gender", 1))
+    glucose = float(params.get("glucose", 110))
+    glucose_pp = float(params.get("glucose_pp", glucose))
+    bp = float(params.get("bp", 120))
+    cholesterol = float(params.get("cholesterol", 220))
+    hemoglobin = float(params.get("hemoglobin", 13))
+    bilirubin = float(params.get("total_bilirubin", 1.0))
+    creatinine = float(params.get("creatinine", 1.2))
+    albumin_val = float(params.get("albumin", 3.8))
+    bmi = float(params.get("bmi", 25))
+    urea = float(params.get("urea", 40))
+    sodium = float(params.get("sodium", 138))
+    potassium = float(params.get("potassium", 4.5))
+    insulin = float(params.get("insulin", 80))
+
+    # Diabetes
+    model, _ = get_predictor("Diabetes")
+    if model:
+        vals = [0, glucose, bp, 20, insulin, bmi, 0.5, age]
+        pred, conf = run_prediction(model, vals)
+        positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+        results.append(("Diabetes", positive, conf))
+
+    # Heart Disease
+    model, _ = get_predictor("Heart Disease")
+    if model:
+        vals = [age, gender, 1, bp, cholesterol, 0, 1, 150, 0, 1.0, 1, 0, 2]
+        pred, conf = run_prediction(model, vals)
+        positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+        results.append(("Heart Disease", positive, conf))
+
+    # Liver Disease
+    model, _ = get_predictor("Liver Disease")
+    if model:
+        vals = [age, gender, bilirubin, 0.3, 200, 35, 40, 6.5, albumin_val, 1.0]
+        pred, conf = run_prediction(model, vals)
+        positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+        results.append(("Liver Disease", positive, conf))
+
+    # Chronic Kidney Disease
+    model, _ = get_predictor("Chronic Kidney Disease")
+    if model:
+        vals = [age, bp, 1.02, 1, 0, 0, 0, 0, 0,
+                glucose_pp, urea, creatinine, sodium, potassium,
+                hemoglobin, 44, 7800, 5.2, 0, 0, 0, 0, 0, 0]
+        pred, conf = run_prediction(model, vals)
+        positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+        results.append(("Chronic Kidney Disease", positive, conf))
+
+    # Hepatitis
+    model, _ = get_predictor("Hepatitis")
+    if model:
+        vals = [age, gender, 1, 1, 1, 1, 1, 1, 1, 1, bilirubin, albumin_val]
+        pred, conf = run_prediction(model, vals)
+        positive = bool(pred) and pred not in (0, "0", "No", "Negative")
+        results.append(("Hepatitis", positive, conf))
+
+    return results
+
+
+def _display_report_results(results):
+    """Display prediction results from uploaded report."""
+    st.markdown("---")
+    st.markdown("## 📋 Report Analysis Results")
+
+    positive_count = sum(1 for _, p, _ in results if p)
+    negative_count = len(results) - positive_count
+
+    r1, r2, r3 = st.columns(3)
+    r1.markdown(f'<div class="metric-card"><div style="opacity:.8;font-size:.85rem">Diseases Checked</div>'
+                f'<h2 style="margin:4px 0 0">{len(results)}</h2></div>', unsafe_allow_html=True)
+    r2.markdown(f'<div class="metric-card" style="background:linear-gradient(135deg,#d9534f,#e87c7c)">'
+                f'<div style="opacity:.8;font-size:.85rem">At Risk</div>'
+                f'<h2 style="margin:4px 0 0">{positive_count}</h2></div>', unsafe_allow_html=True)
+    r3.markdown(f'<div class="metric-card" style="background:linear-gradient(135deg,#28a745,#5cb85c)">'
+                f'<div style="opacity:.8;font-size:.85rem">Low Risk</div>'
+                f'<h2 style="margin:4px 0 0">{negative_count}</h2></div>', unsafe_allow_html=True)
+
+    st.markdown("")
+    for disease_name, positive, conf in results:
+        if positive:
+            conf_text = f" - {conf*100:.0f}% confidence" if conf else ""
+            st.markdown(f'<div class="result-positive">Warning: {disease_name}: '
+                        f'<strong>Positive / At Risk</strong>{conf_text}</div>',
+                        unsafe_allow_html=True)
+        else:
+            conf_text = f" - {conf*100:.0f}% confidence" if conf else ""
+            st.markdown(f'<div class="result-negative">OK: {disease_name}: '
+                        f'<strong>Negative / Low Risk</strong>{conf_text}</div>',
+                        unsafe_allow_html=True)
+        st.markdown("")
+
+    if positive_count > 0:
+        st.warning("Doctor consultation recommended for conditions marked at risk.")
+    else:
+        st.success("All clear! No significant risk detected from your report values.")
 
 
 # ── Disease prediction ────────────────────────────────────────────────────────
@@ -943,14 +1192,15 @@ else:
     {
         "🏠 Dashboard":          page_dashboard,
         "🏥 About":              page_about,
-        "� Full Body Checkup":  page_full_body_checkup,
-        "�🧪 Disease Prediction": page_disease_prediction,
+        "🩻 Full Body Checkup":  page_full_body_checkup,
+        "📤 Upload Report":      page_upload_report,
+        "🧪 Disease Prediction": page_disease_prediction,
         "🤒 Symptom-Based":      page_symptom,
         "📁 Saved Reports":      page_reports,
         "📊 Analytics":          page_analytics,
         "💡 Health Tips":        page_tips,
+        "🏨 Nearby Hospitals":   page_hospitals,
+        "🤖 AI Chatbot":         page_chatbot,
         "👤 Profile":            page_profile,
         "⚙️ Settings":          page_settings,
-        "🏨 Nearby Hospitals": page_hospitals,
-        "🤖 AI Chatbot": page_chatbot,
     }[page]()
