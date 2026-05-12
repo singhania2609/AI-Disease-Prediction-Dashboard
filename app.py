@@ -1082,7 +1082,11 @@ def page_chatbot():
             with st.spinner("🤖 Thinking..."):
                 try:
                     from groq import Groq
-                    client = Groq(api_key=st.secrets["groq"]["api_key"])
+                    api_key = st.secrets.get("groq", {}).get("api_key", "")
+                    if not api_key or api_key == "YOUR_GROQ_API_KEY_HERE":
+                        st.error("Please add your Groq API key in .streamlit/secrets.toml")
+                        return
+                    client = Groq(api_key=api_key)
                     
                     response = client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
