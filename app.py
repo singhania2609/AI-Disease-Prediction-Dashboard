@@ -95,6 +95,9 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 .gauge-title { text-align:center; font-weight:600; color:#1e3a5f; margin-bottom:.3rem; font-size:.95rem; }
 /* ── Dark mode ── */
 [data-testid="stAppViewContainer"].dark-mode { background-color:#0e1117 !important; }
+/* ── Hide Streamlit footer ── */
+footer { visibility: hidden; }
+footer:after { visibility: hidden; }
 [data-testid="stSidebar"].dark-mode          { background-color:#111827 !important; }
 .dark-mode .main-title   { color:#90cdf4 !important; }
 .dark-mode .subtitle     { color:#a0aec0 !important; }
